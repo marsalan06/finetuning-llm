@@ -1,0 +1,10 @@
+torch>=2.0.0
+transformers>=4.53.0
+peft>=0.15.0
+datasets>=2.14.0
+evaluate>=0.4.0
+numpy>=1.17
+accelerate>=0.21.0
+safetensors>=0.4.3
+huggingface-hub>=0.25.0
+tqdm>=4.27 
