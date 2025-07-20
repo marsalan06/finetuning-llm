@@ -7,4 +7,6 @@ numpy>=1.17
 accelerate>=0.21.0
 safetensors>=0.4.3
 huggingface-hub>=0.25.0
-tqdm>=4.27 
+tqdm>=4.27
+psutil>=5.9.0
+bitsandbytes>=0.41.0 

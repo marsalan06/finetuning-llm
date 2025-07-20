@@ -1,29 +1,32 @@
-# LoRA Fine-Tuning Pipeline
+# LoRA Fine-tuning Pipeline with Checkpoint Support
 
-A modular Python implementation for fine-tuning language models using LoRA (Low-Rank Adaptation) technique. This project provides a complete pipeline for fine-tuning models on custom datasets with efficient parameter updates.
+A comprehensive pipeline for fine-tuning language models using LoRA (Low-Rank Adaptation) with advanced checkpoint management and resource optimization for MacBook GPU training.
 
 ## Features
 
-- **Modular Design**: Well-organized code structure with separate modules for different functionalities
-- **LoRA Implementation**: Efficient fine-tuning using Low-Rank Adaptation
-- **Configurable**: Centralized configuration for easy hyperparameter tuning
-- **Evaluation Tools**: Built-in comparison between base and fine-tuned models
-- **CSV Export**: Save model predictions for manual analysis
+- **LoRA Fine-tuning**: Efficient parameter-efficient fine-tuning
+- **Checkpoint Management**: Automatic checkpoint saving and resumption
+- **Resource Optimization**: Optimized for MacBook GPU (MPS) training
+- **Memory Management**: Gradient checkpointing, mixed precision, and batch size optimization
+- **System Monitoring**: Real-time resource usage monitoring
+- **Flexible Training**: Resume training from any checkpoint
 
-## Project Structure
+## Resource Optimizations for MacBook GPU
 
-```
-finetuning-llm/
-├── config.py              # Configuration and hyperparameters
-├── data_loader.py         # Dataset loading and preprocessing
-├── model_setup.py         # Model initialization and LoRA setup
-├── trainer.py             # Training orchestration
-├── generation.py          # Text generation and evaluation
-├── main.py               # Main pipeline script
-├── requirements.txt       # Python dependencies
-├── README.md             # This file
-└── lower_rank_adaption_fine_tuning.ipynb  # Original notebook
-```
+The pipeline includes several optimizations specifically designed for MacBook GPU training:
+
+### Memory Optimizations
+- **Reduced Batch Size**: `per_device_train_batch_size=4` (reduced from 16)
+- **Gradient Accumulation**: `gradient_accumulation_steps=8` to simulate larger batches
+- **Mixed Precision**: FP16 training enabled for memory efficiency
+- **Gradient Checkpointing**: Trades compute for memory
+- **Frequent Checkpoints**: Save every 500 steps instead of every epoch
+
+### Training Optimizations
+- **Cosine Learning Rate Scheduling**: Smooth learning rate decay
+- **Gradient Clipping**: Prevents gradient explosion
+- **Warmup Steps**: Gradual learning rate warmup
+- **Multi-worker Data Loading**: Parallel data loading
 
 ## Installation
 
@@ -33,158 +36,240 @@ git clone <repository-url>
 cd finetuning-llm
 ```
 
-2. Install dependencies:
+2. Create a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Usage
 
-### Full Pipeline
+### Basic Training
 
-Run the complete fine-tuning pipeline:
-
+Run the full training pipeline:
 ```bash
 python main.py
 ```
 
-This will:
-1. Load and preprocess the dataset
-2. Initialize the base model
-3. Apply LoRA configuration
-4. Train the model
-5. Save the fine-tuned model
-6. Compare base and fine-tuned models
-7. Save results to CSV
+The script will:
+- Check system resources
+- Load and preprocess data
+- Set up the model with LoRA
+- Train with automatic checkpointing
+- Evaluate and compare results
+
+### Resume Training
+
+If training was interrupted, resume from the latest checkpoint:
+```bash
+python main.py --resume
+```
 
 ### Evaluation Only
 
-If you already have a trained model, run only the evaluation:
-
+Run evaluation on a previously trained model:
 ```bash
 python main.py --evaluate
 ```
 
+### System Check
+
+Analyze system resources and get recommendations:
+```bash
+python system_check.py
+```
+
+### Checkpoint Management
+
+List all available checkpoints:
+```bash
+python checkpoint_manager.py list
+```
+
+Test latest checkpoint against base model:
+```bash
+python checkpoint_manager.py test
+```
+
+Test specific checkpoint:
+```bash
+python checkpoint_manager.py test ./results/checkpoint-1000
+```
+
+Clean up old checkpoints (keep only the latest 3):
+```bash
+python checkpoint_manager.py cleanup 3
+```
+
+Delete a specific checkpoint:
+```bash
+python checkpoint_manager.py delete ./results/checkpoint-1000
+```
+
 ## Configuration
 
-All hyperparameters are centralized in `config.py`. Key configurations include:
-
-### Model Configuration
-- `MODEL_CHECKPOINT`: Base model to fine-tune (default: "distilgpt2")
-- `MAX_LENGTH`: Maximum sequence length (default: 512)
-
-### LoRA Configuration
-- `r`: Rank of LoRA adaptation (default: 8)
-- `lora_alpha`: Scaling factor (default: 32)
-- `lora_dropout`: Dropout rate (default: 0.1)
-- `target_modules`: Layers to apply LoRA to
+All settings are centralized in `config.py`:
 
 ### Training Configuration
-- `learning_rate`: Learning rate (default: 5e-5)
-- `per_device_train_batch_size`: Batch size (default: 16)
-- `num_train_epochs`: Number of training epochs (default: 3)
+```python
+TRAINING_ARGS = {
+    "per_device_train_batch_size": 4,  # Reduced for memory efficiency
+    "gradient_accumulation_steps": 8,  # Simulate larger batch size
+    "fp16": True,  # Mixed precision
+    "save_steps": 500,  # Save every 500 steps
+    "eval_steps": 500,  # Evaluate every 500 steps
+    "warmup_steps": 100,  # Learning rate warmup
+    "lr_scheduler_type": "cosine",  # Cosine scheduling
+    "max_grad_norm": 1.0,  # Gradient clipping
+    "resume_from_checkpoint": True,  # Enable checkpoint resumption
+}
+```
 
-## Dataset
+### Memory Optimization
+```python
+MEMORY_OPTIMIZATION = {
+    "use_gradient_checkpointing": True,
+    "use_8bit_optimizer": False,  # Enable if you have bitsandbytes
+    "use_4bit_quantization": False,  # Enable if you have bitsandbytes
+    "max_memory_MB": 8000,  # Adjust based on your MacBook
+}
+```
 
-The pipeline uses the "iamtarun/code_instructions_120k_alpaca" dataset, which contains:
-- Instruction: Programming task description
-- Input: Additional context or requirements
-- Output: Expected code solution
+## Checkpoint System
+
+### Automatic Checkpointing
+- Checkpoints are saved every 500 steps
+- Only the latest 3 checkpoints are kept to save disk space
+- Training automatically resumes from the latest checkpoint if interrupted
+
+### Checkpoint Information
+Each checkpoint contains:
+- Model weights
+- Optimizer state
+- Learning rate scheduler state
+- Training history
+- Evaluation metrics
+
+### Manual Checkpoint Management
+Use the checkpoint manager for advanced operations:
+```bash
+# List all checkpoints with details
+python checkpoint_manager.py list
+
+# Test latest checkpoint against base model
+python checkpoint_manager.py test
+
+# Test specific checkpoint
+python checkpoint_manager.py test ./results/checkpoint-1000
+
+# Clean up old checkpoints
+python checkpoint_manager.py cleanup 3
+
+# Check if resuming is possible
+python checkpoint_manager.py resume
+```
+
+## System Requirements
+
+### Minimum Requirements
+- macOS with Apple Silicon (M1/M2/M3) or Intel Mac
+- 8GB RAM (16GB recommended)
+- 10GB free disk space
+
+### Recommended Setup
+- 16GB+ RAM
+- 20GB+ free disk space
+- Fast SSD storage
+
+## Troubleshooting
+
+### Memory Issues
+If you encounter memory issues:
+1. Reduce `per_device_train_batch_size` to 2
+2. Increase `gradient_accumulation_steps` to 16
+3. Enable `use_8bit_optimizer` if you have bitsandbytes installed
+4. Reduce `max_length` in the configuration
+
+### Training Interruption
+If training is interrupted:
+1. The system will automatically resume from the latest checkpoint
+2. Use `python main.py --resume` to manually resume
+3. Check available checkpoints with `python checkpoint_manager.py list`
+4. Test checkpoint performance with `python checkpoint_manager.py test`
+
+### Performance Optimization
+For better performance:
+1. Ensure you're using MPS (Apple Silicon GPU)
+2. Close other applications to free up memory
+3. Use an external SSD for faster I/O
+4. Consider using 8-bit optimization if available
+
+### System Analysis
+Run system check to get recommendations:
+```bash
+python system_check.py
+```
+
+## File Structure
+
+```
+finetuning-llm/
+├── config.py              # Configuration settings
+├── data_loader.py         # Data loading and preprocessing
+├── model_setup.py         # Model and LoRA setup
+├── trainer.py             # Training with checkpoint support
+├── generation.py          # Text generation and evaluation
+├── checkpoint_manager.py  # Checkpoint management utilities
+├── system_check.py        # System resource analysis
+├── main.py               # Main training pipeline
+├── requirements.txt       # Dependencies
+└── README.md             # This file
+```
 
 ## Output Files
 
-- `./fine_tuned_model/`: Saved fine-tuned model and tokenizer
-- `./results/`: Training logs and checkpoints
-- `./logs/`: Training logs
-- `generated_outputs.csv`: Model comparison results
+After training, you'll find:
+- `./results/` - Training checkpoints and logs
+- `./fine_tuned_model/` - Final trained model
+- `./logs/` - Training logs
+- `generated_outputs.csv` - Comparison results
+- `checkpoint_XXXX_comparison.csv` - Checkpoint test results
 
-## Key Components
+## Advanced Usage
 
-### Data Loader (`data_loader.py`)
-- Handles dataset loading from Hugging Face
-- Preprocesses data by combining instruction and input
-- Tokenizes text for model training
+### Custom Configuration
+Modify `config.py` to adjust:
+- Model checkpoint
+- Dataset
+- LoRA parameters
+- Training hyperparameters
+- Memory optimization settings
 
-### Model Setup (`model_setup.py`)
-- Initializes base model and tokenizer
-- Applies LoRA configuration
-- Provides model information utilities
-
-### Trainer (`trainer.py`)
-- Sets up training configuration
-- Handles model training and saving
-- Loads fine-tuned models for evaluation
-
-### Generation (`generation.py`)
-- Generates text from models
-- Compares base and fine-tuned model outputs
-- Saves results to CSV format
-
-## LoRA Benefits
-
-1. **Parameter Efficiency**: Only updates a small number of parameters
-2. **Memory Efficient**: Requires less GPU memory
-3. **Fast Training**: Faster convergence compared to full fine-tuning
-4. **Modular**: Can be easily applied to different base models
-
-## Customization
-
-### Using Different Models
-Change the model checkpoint in `config.py`:
-```python
-MODEL_CHECKPOINT = "gpt2"  # or any other model
-```
-
-### Using Different Datasets
-Modify the dataset name in `config.py`:
+### Custom Datasets
+Replace the dataset in `config.py`:
 ```python
 DATASET_NAME = "your-dataset-name"
 ```
 
-### Adjusting LoRA Parameters
-Modify LoRA configuration in `config.py`:
+### Different Models
+Change the base model:
 ```python
-LORA_CONFIG = {
-    "r": 16,  # Higher rank for more capacity
-    "lora_alpha": 64,  # Higher alpha for stronger adaptation
-    # ... other parameters
-}
+MODEL_CHECKPOINT = "gpt2"  # or any other model
 ```
 
-## Troubleshooting
+## Contributing
 
-### GPU Memory Issues
-- **CUDA Out of Memory**: Reduce batch size in `config.py`
-- **MPS Memory Issues** (macOS): Reduce batch size or use CPU fallback
-- Use a smaller model checkpoint
-- Reduce sequence length
-
-### macOS Specific
-- **MPS Not Available**: Ensure you're using PyTorch 2.0+ and macOS 12.3+
-- **Slow Training**: MPS may be slower than CUDA for some operations
-- **Memory Issues**: Apple Silicon has unified memory - monitor Activity Monitor
-
-### Training Too Slow
-- Increase batch size if memory allows
-- Reduce number of epochs
-- Use a smaller dataset for testing
-
-### Poor Results
-- Increase LoRA rank (`r`)
-- Adjust learning rate
-- Try different target modules
-
-## Requirements
-
-- Python 3.8+
-- PyTorch 2.0+
-- Transformers 4.53+
-- PEFT 0.15+
-- GPU acceleration (recommended):
-  - **NVIDIA GPU**: CUDA-compatible GPU
-  - **Apple Silicon**: MPS (Metal Performance Shaders) - automatically detected
-  - **CPU**: Fallback option (slower training)
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## License
 
-This project is open source and available under the MIT License. 
+This project is licensed under the MIT License. 

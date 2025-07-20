@@ -1,3 +1,23 @@
 python test_device.py
 
 python main.py
+
+
+Training Math with 97,567 datapoints:
+Batch Configuration:
+Batch size: 4
+Gradient accumulation: 8
+Effective batch size: 4 × 8 = 32
+Steps per Epoch:
+Steps: 97,567 ÷ 32 = 3,049 steps/epoch
+Total Training Steps:
+Epochs: 3
+Total steps: 3,049 × 3 = 9,147 steps
+Checkpoint Frequency:
+Save every: 500 steps
+Checkpoints per epoch: 3,049 ÷ 500 = 6 checkpoints/epoch
+Total checkpoints: 9,147 ÷ 500 = 18 checkpoints (keeps latest 3)
+Evaluation Frequency:
+Eval every: 500 steps
+Evaluations per epoch: 6 evaluations/epoch
+Training time estimate: ~2-4 hours on MacBook GPU depending on model size and system performance.
