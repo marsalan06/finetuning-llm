@@ -31,7 +31,8 @@ def generate_text(model, tokenizer, input_text, max_length=None):
         return_tensors="pt", 
         padding=True, 
         truncation=True, 
-        max_length=Config.MAX_LENGTH
+        max_length=Config.MAX_LENGTH,
+        pad_to_multiple_of=8  # Ensure proper padding
     )
     
     # Move inputs to device
@@ -139,6 +140,7 @@ def get_sample_inputs():
         list: List of sample input texts
     """
     return [
+        "Generate a Python code for crawling a website for a specific type of data.",
         "Write a Python function to reverse a string",
         "Write a function to check if a number is prime",
         "Create a function to find the maximum element in a list",

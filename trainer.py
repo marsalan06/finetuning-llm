@@ -140,28 +140,50 @@ def load_fine_tuned_model(model_path=None):
     
     Args:
         model_path (str, optional): Path to the saved model. 
-                                  Defaults to Config.MODEL_SAVE_PATH.
+                                  If None, loads from the latest checkpoint.
     
     Returns:
         tuple: (model, tokenizer) - The loaded model and tokenizer
     """
     if model_path is None:
-        model_path = Config.MODEL_SAVE_PATH
+        # Find the latest checkpoint
+        latest_checkpoint = find_latest_checkpoint()
+        if latest_checkpoint is None:
+            raise FileNotFoundError("No fine-tuned model checkpoints found. Please train the model first.")
+        model_path = latest_checkpoint
         
     print(f"Loading fine-tuned model from: {model_path}")
     
+    # Check if the model directory exists
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Fine-tuned model not found at: {model_path}")
+    
     from transformers import AutoModelForCausalLM, AutoTokenizer
     
-    # Load the fine-tuned model
-    model = AutoModelForCausalLM.from_pretrained(model_path)
-    model.to(Config.DEVICE)
+    # Load the base model first
+    base_model = AutoModelForCausalLM.from_pretrained(
+        Config.MODEL_CHECKPOINT,
+        trust_remote_code=True
+    )
+    base_model.to(Config.DEVICE)
+    
+    # Load the LoRA adapters from the checkpoint
+    from peft import PeftModel
+    fine_tuned_model = PeftModel.from_pretrained(base_model, model_path)
     
     # Load the tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(
+        Config.MODEL_CHECKPOINT,
+        trust_remote_code=True
+    )
+    
+    # Ensure padding token is set
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
     
     print("Fine-tuned model loaded successfully.")
     
-    return model, tokenizer
+    return fine_tuned_model, tokenizer
 
 
 def get_checkpoint_info():

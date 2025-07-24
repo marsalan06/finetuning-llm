@@ -167,7 +167,16 @@ def run_evaluation_only():
     # Load models
     print("\n1. Loading models...")
     base_model, base_tokenizer = setup_model()
-    fine_tuned_model, fine_tuned_tokenizer = load_fine_tuned_model()
+    
+    try:
+        fine_tuned_model, fine_tuned_tokenizer = load_fine_tuned_model()
+    except FileNotFoundError as e:
+        print(f"\n❌ Error: {e}")
+        print("\nThe fine-tuned model has not been saved yet. You need to:")
+        print("1. Run the full training pipeline first: python main.py")
+        print("2. Or resume training from a checkpoint: python main.py --resume")
+        print("3. Then run evaluation: python main.py --evaluate")
+        return
     
     # Get sample inputs
     print("\n2. Preparing sample inputs...")

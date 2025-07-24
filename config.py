@@ -64,7 +64,7 @@ class Config:
         "per_device_train_batch_size": 4,  # REDUCED from 16 to 4 for memory efficiency
         "per_device_eval_batch_size": 8,   # REDUCED from 64 to 8
         "gradient_accumulation_steps": 8,  # NEW: Accumulate gradients to simulate larger batch
-        "num_train_epochs": 6,
+        "num_train_epochs": 4,
         "weight_decay": 0.01,
         "logging_dir": "./results/logs",  # Store logs inside results folder
         "logging_steps": 100,  # REDUCED from 500 for more frequent logging
