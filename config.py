@@ -9,15 +9,18 @@ import os
 class Config:
     """Configuration class containing all hyperparameters and settings."""
     
-    # Device configuration - optimized for macOS with MPS support
+    # Device configuration - optimized for Docker GPU (CUDA preferred)
     @staticmethod
     def get_device():
-        """Get the best available device for the current system."""
+        """Get the best available device for the current system. CUDA preferred for Docker/RunPod."""
         if torch.cuda.is_available():
+            print("[Config] Using CUDA device (Docker/RunPod GPU)")
             return torch.device("cuda")
         elif torch.backends.mps.is_available():
+            print("[Config] Using MPS device (Apple Silicon)")
             return torch.device("mps")
         else:
+            print("[Config] Using CPU device")
             return torch.device("cpu")
     
     DEVICE = get_device()
@@ -49,7 +52,7 @@ class Config:
         "bnb_4bit_quant_type": "nf4",  # NormalFloat4 quantization
     }
     
-    # Training configuration - OPTIMIZED FOR MACBOOK GPU
+    # Training configuration - OPTIMIZED FOR DOCKER GPU (RunPod)
     TRAINING_ARGS = {
         "output_dir": "./results",
         "eval_strategy": "steps",  # Changed from "epoch" to "steps" for more frequent checkpoints
@@ -57,13 +60,13 @@ class Config:
         "save_strategy": "steps",  # Changed from "epoch" to "steps" for more frequent saves
         "save_steps": 500,  # Save every 500 steps
         "save_total_limit": 3,  # Keep only the last 3 checkpoints to save disk space
-        "learning_rate": 5e-5,
+        "learning_rate": 2e-5,  # Lowered for stability on LLMs
         "per_device_train_batch_size": 4,  # REDUCED from 16 to 4 for memory efficiency
         "per_device_eval_batch_size": 8,   # REDUCED from 64 to 8
         "gradient_accumulation_steps": 8,  # NEW: Accumulate gradients to simulate larger batch
-        "num_train_epochs": 3,
+        "num_train_epochs": 6,
         "weight_decay": 0.01,
-        "logging_dir": "./logs",
+        "logging_dir": "./results/logs",  # Store logs inside results folder
         "logging_steps": 100,  # REDUCED from 500 for more frequent logging
         "load_best_model_at_end": True,
         "metric_for_best_model": "eval_loss",  # Changed from "accuracy" to "eval_loss"
@@ -71,7 +74,7 @@ class Config:
         "fp16": False,  # Disabled for MPS compatibility
         "dataloader_num_workers": 2,  # NEW: Use multiple workers for data loading
         "remove_unused_columns": False,  # NEW: Required for some datasets
-        "warmup_steps": 100,  # NEW: Gradual warmup to prevent early instability
+        "warmup_steps": 300,  # Increased for smoother start
         "lr_scheduler_type": "cosine",  # NEW: Cosine learning rate scheduling
         "max_grad_norm": 1.0,  # NEW: Gradient clipping
         "resume_from_checkpoint": True,  # NEW: Enable checkpoint resumption

@@ -28,54 +28,47 @@ def load_data():
 
 def preprocess_data(dataset, tokenizer):
     """
-    Preprocesses the dataset by combining instruction and input as input prompt.
-    
-    Args:
-        dataset: The dataset to preprocess
-        tokenizer: The tokenizer to use for tokenization
-        
-    Returns:
-        DatasetDict: Tokenized dataset ready for training
+    Preprocess dataset for GPT2-style decoder-only fine-tuning using HuggingFace Datasets.
+    - Uses the dataset's existing 'prompt' field as input.
+    - Concatenates 'prompt' + 'output' as the training input.
+    - Labels are same as input_ids, but prompt tokens are masked with -100 (ignored during loss).
     """
     def preprocess_function(examples):
-        """
-        Preprocess function that combines instruction and input, then tokenizes.
-        
-        Args:
-            examples: Batch of examples from the dataset
-            
-        Returns:
-            dict: Tokenized inputs with labels
-        """
-        # Combine the instruction and input to form a prompt
-        combined_input = [
-            f"Instruction: {instruction}\nInput: {input_data}" 
-            for instruction, input_data in zip(examples['instruction'], examples['input'])
-        ]
+        prompts = examples["prompt"]
+        outputs = examples["output"]
+        full_texts = [prompt + output for prompt, output in zip(prompts, outputs)]
 
-        # Tokenize the combined input as prompt
-        tokenized_inputs = tokenizer(
-            combined_input, 
-            padding="max_length", 
-            truncation=True, 
-            max_length=Config.MAX_LENGTH
+        # Tokenize full (prompt + output)
+        tokenized = tokenizer(
+            full_texts,
+            padding="max_length",
+            truncation=True,
+            max_length=Config.MAX_LENGTH,
+            return_tensors="pt"
         )
 
-        # Tokenize the output (target text) - this will be the label
-        tokenized_labels = tokenizer(
-            examples['output'], 
-            padding="max_length", 
-            truncation=True, 
-            max_length=Config.MAX_LENGTH
+        # Tokenize prompt separately to find how much to mask
+        prompt_tokenized = tokenizer(
+            prompts,
+            padding="max_length",
+            truncation=True,
+            max_length=Config.MAX_LENGTH,
+            return_tensors="pt"
         )
 
-        # Return the tokenized inputs and outputs
-        tokenized_inputs['labels'] = tokenized_labels['input_ids']
-        return tokenized_inputs
+        # Mask the prompt part in the labels with -100
+        labels = tokenized["input_ids"].clone()
+        for i, prompt_len in enumerate(prompt_tokenized["attention_mask"].sum(dim=1).tolist()):
+            labels[i][:prompt_len] = -100  # Mask prompt tokens
 
-    # Apply the tokenization function to the dataset
+        tokenized["labels"] = labels
+
+        # Convert tensors to Python lists (HF Datasets requires this)
+        return {k: v.tolist() for k, v in tokenized.items()}
+
+    # Apply tokenization to the dataset
     tokenized_dataset = dataset.map(preprocess_function, batched=True)
-    print(f"Dataset after tokenization: {tokenized_dataset}")
+    print("✅ Tokenization complete.")
     return tokenized_dataset
 
 

@@ -1,12 +1,17 @@
-torch>=2.0.0
-transformers>=4.53.0
-peft>=0.15.0
-datasets>=2.14.0
-evaluate>=0.4.0
-numpy>=1.17
-accelerate>=0.21.0
-safetensors>=0.4.3
-huggingface-hub>=0.25.0
-tqdm>=4.27
-psutil>=5.9.0
-bitsandbytes>=0.41.0 
+# Core ML/DL libraries
+torch>=2.0.0           # PyTorch (GPU support in Docker)
+transformers>=4.53.0   # HuggingFace Transformers
+peft>=0.15.0           # Parameter-Efficient Fine-Tuning (LoRA)
+datasets>=2.14.0       # HuggingFace Datasets
+evaluate>=0.4.0        # Evaluation utilities
+numpy>=1.17            # Numerical operations
+
+# Training/acceleration
+accelerate>=0.21.0     # Multi-GPU/accelerator support
+safetensors>=0.4.3     # Fast, safe tensor serialization
+huggingface-hub>=0.25.0 # Model/dataset hub
+
+# Utilities
+psutil>=5.9.0           # System monitoring
+tqdm>=4.27              # Progress bars
+bitsandbytes>=0.41.0    # 8-bit/4-bit optimizers (GPU only) 
