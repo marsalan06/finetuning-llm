@@ -60,11 +60,11 @@ class Config:
         "save_strategy": "steps",  # Changed from "epoch" to "steps" for more frequent saves
         "save_steps": 500,  # Save every 500 steps
         "save_total_limit": 3,  # Keep only the last 3 checkpoints to save disk space
-        "learning_rate": 2e-5,  # Lowered for stability on LLMs
-        "per_device_train_batch_size": 4,  # REDUCED from 16 to 4 for memory efficiency
-        "per_device_eval_batch_size": 8,   # REDUCED from 64 to 8
-        "gradient_accumulation_steps": 8,  # NEW: Accumulate gradients to simulate larger batch
-        "num_train_epochs": 4,
+        "learning_rate": 1e-5,  # REDUCED from 2e-5 to 1e-5 to prevent overfitting
+        "per_device_train_batch_size": 2,  # REDUCED from 4 to 2 for better stability
+        "per_device_eval_batch_size": 4,   # REDUCED from 8 to 4
+        "gradient_accumulation_steps": 16,  # INCREASED from 8 to 16 to maintain effective batch size
+        "num_train_epochs": 2,  # REDUCED from 4 to 2 to prevent overfitting
         "weight_decay": 0.01,
         "logging_dir": "./results/logs",  # Store logs inside results folder
         "logging_steps": 100,  # REDUCED from 500 for more frequent logging
@@ -74,27 +74,27 @@ class Config:
         "fp16": False,  # Disabled for MPS compatibility
         "dataloader_num_workers": 2,  # NEW: Use multiple workers for data loading
         "remove_unused_columns": False,  # NEW: Required for some datasets
-        "warmup_steps": 300,  # Increased for smoother start
+        "warmup_steps": 100,  # REDUCED from 300 for shorter warmup
         "lr_scheduler_type": "cosine",  # NEW: Cosine learning rate scheduling
-        "max_grad_norm": 1.0,  # NEW: Gradient clipping
-        "resume_from_checkpoint": True,  # NEW: Enable checkpoint resumption
+        "max_grad_norm": 0.5,  # REDUCED from 1.0 for more stable training
+        "prediction_loss_only": True,  # Only compute loss during evaluation
     }
     
     # Generation configuration
     GENERATION_CONFIG = {
-        "max_length": 100,
+        "max_length": 200,  # INCREASED from 100 to allow for longer code generation
         "num_return_sequences": 1,
-        "do_sample": True
+        "do_sample": True,
+        "temperature": 0.7,  # Control randomness
+        "top_p": 0.9,  # Nucleus sampling
+        "top_k": 50,  # Top-k sampling
+        "repetition_penalty": 1.2,  # Prevent repetition
+        "no_repeat_ngram_size": 3,  # Prevent n-gram repetition
     }
     
-    # File paths
-    MODEL_SAVE_PATH = "./fine_tuned_model"
-    PREDICTIONS_CSV_PATH = "generated_outputs.csv"
-    
-    # NEW: Checkpoint configuration
-    CHECKPOINT_DIR = "./checkpoints"
-    CHECKPOINT_SAVE_STEPS = 500
-    CHECKPOINT_SAVE_TOTAL_LIMIT = 3
+    # File paths - ALL CONSOLIDATED IN RESULTS FOLDER
+    MODEL_SAVE_PATH = "./results/fine_tuned_model"
+    PREDICTIONS_CSV_PATH = "./results/generated_outputs.csv"
     
     # NEW: Memory optimization settings
     MEMORY_OPTIMIZATION = {
@@ -108,10 +108,9 @@ class Config:
     def create_directories():
         """Create necessary directories for the training process."""
         directories = [
-            Config.TRAINING_ARGS["output_dir"],
-            Config.TRAINING_ARGS["logging_dir"],
-            Config.CHECKPOINT_DIR,
-            os.path.dirname(Config.MODEL_SAVE_PATH)
+            Config.TRAINING_ARGS["output_dir"],  # ./results
+            Config.TRAINING_ARGS["logging_dir"],  # ./results/logs
+            os.path.dirname(Config.MODEL_SAVE_PATH)  # ./results (for fine_tuned_model)
         ]
         
         for directory in directories:

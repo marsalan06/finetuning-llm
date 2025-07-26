@@ -15,7 +15,10 @@ from trainer import (
     setup_trainer, train_model, save_model, load_fine_tuned_model,
     find_latest_checkpoint, get_checkpoint_info, cleanup_old_checkpoints
 )
-from generation import compare_models, print_comparison, save_predictions_to_csv, get_sample_inputs
+from generation import (
+    compare_models, print_comparison, save_predictions_to_csv, get_sample_inputs,
+    compare_models_with_dataset_evaluation
+)
 
 
 def check_system_resources():
@@ -131,15 +134,19 @@ def main():
     print("\n10. Preparing sample inputs for evaluation...")
     sample_inputs = get_sample_inputs()
     
-    # Step 11: Compare base and fine-tuned models
-    print("\n11. Comparing base and fine-tuned models...")
+    # Step 11: Compare base and fine-tuned models with dataset evaluation
+    print("\n11. Comparing base and fine-tuned models with dataset evaluation...")
     base_model, base_tokenizer = setup_model()  # Load fresh base model
     
-    base_outputs, fine_tuned_outputs = compare_models(
+    # Get the original dataset for evaluation
+    original_dataset = load_data()
+    
+    base_outputs, fine_tuned_outputs, evaluation_results = compare_models_with_dataset_evaluation(
         base_model=base_model,
         base_tokenizer=base_tokenizer,
         fine_tuned_model=fine_tuned_model,
         fine_tuned_tokenizer=fine_tuned_tokenizer,
+        dataset=original_dataset["test"],  # Use test data for evaluation
         inputs=sample_inputs
     )
     
@@ -182,13 +189,17 @@ def run_evaluation_only():
     print("\n2. Preparing sample inputs...")
     sample_inputs = get_sample_inputs()
     
-    # Compare models
-    print("\n3. Comparing models...")
-    base_outputs, fine_tuned_outputs = compare_models(
+    # Get the original dataset for evaluation
+    original_dataset = load_data()
+    
+    # Compare models with dataset evaluation
+    print("\n3. Comparing models with dataset evaluation...")
+    base_outputs, fine_tuned_outputs, evaluation_results = compare_models_with_dataset_evaluation(
         base_model=base_model,
         base_tokenizer=base_tokenizer,
         fine_tuned_model=fine_tuned_model,
         fine_tuned_tokenizer=fine_tuned_tokenizer,
+        dataset=original_dataset["test"],  # Use test data for evaluation
         inputs=sample_inputs
     )
     

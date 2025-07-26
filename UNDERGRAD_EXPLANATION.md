@@ -845,3 +845,83 @@ sample_inputs = [
 - **Human Evaluation**: Include human assessment of outputs
 
 This comprehensive guide covers all aspects of the LoRA fine-tuning pipeline, providing undergraduate students with a complete understanding of the system's architecture, implementation details, and best practices for experimentation and optimization. 
+
+
+-----------------improvements--------------------------------
+## **📋 Parameter Changes & Their Benefits:**
+
+### **🔧 Training Parameters (config.py):**
+
+**Learning Rate:**
+- **Before:** `2e-5` → **After:** `1e-5`
+- **Benefit:** Prevents overfitting, more stable training
+
+**Batch Sizes:**
+- **Train:** `4` → `2` | **Eval:** `8` → `4`
+- **Benefit:** Reduces memory usage, better for MacBook GPU
+
+**Gradient Accumulation:**
+- **Before:** `8` → **After:** `16`
+- **Benefit:** Maintains effective batch size (2×16=32) while using less memory
+
+**Training Duration:**
+- **Epochs:** `4` → `2` | **Warmup:** `300` → `100`
+- **Benefit:** Faster training, less overfitting
+
+**Gradient Norm:**
+- **Before:** `1.0` → **After:** `0.5`
+- **Benefit:** More stable gradients, prevents exploding gradients
+
+### **🎯 Generation Parameters (config.py):**
+
+**Max Length:**
+- **Before:** `100` → **After:** `200`
+- **Benefit:** Allows longer code generation
+
+**Sampling Parameters:**
+- **Temperature:** `0.7` (controls randomness)
+- **Top-p:** `0.9` (nucleus sampling)
+- **Top-k:** `50` (top-k sampling)
+- **Repetition Penalty:** `1.2` (prevents repetition)
+- **No-repeat-ngram:** `3` (prevents n-gram repetition)
+- **Benefit:** Better quality, less repetitive outputs
+
+**Removed:**
+- **`early_stopping`** (not compatible with this model)
+- **Benefit:** No more generation warnings
+
+### **🔧 Generation Function (generation.py):**
+
+**Max Length Fix:**
+- **Before:** `max_length` → **After:** `max_new_tokens`
+- **Benefit:** No more "input length > max_length" errors
+
+**Attention Mask:**
+- **Added:** Explicit attention mask handling
+- **Benefit:** No more attention mask warnings
+
+### **📁 Folder Structure:**
+
+**Consolidated:**
+- **Before:** Scattered across `./results/`, `./checkpoints/`, `./logs/`
+- **After:** Everything in `./results/`
+- **Benefit:** Clean organization, easier to manage
+
+### **🔄 Resume Logic:**
+
+**Fixed:**
+- **Before:** Always found latest checkpoint even when user said "n"
+- **After:** Truly starts fresh when user says "n"
+- **Benefit:** User control over training behavior
+
+### **📊 Overall Impact:**
+
+✅ **Stability:** Reduced overfitting, more stable training
+✅ **Memory:** Better MacBook GPU compatibility
+✅ **Quality:** Better generation parameters
+✅ **Reliability:** Fixed generation errors and warnings
+✅ **Organization:** Clean folder structure
+✅ **Control:** Proper resume functionality
+
+**Result:** Training should be more stable, faster, and produce better outputs!
+-----------------improvements--------------------------------

@@ -32,11 +32,39 @@ def preprocess_data(dataset, tokenizer):
     - Uses the dataset's existing 'prompt' field as input.
     - Concatenates 'prompt' + 'output' as the training input.
     - Labels are same as input_ids, but prompt tokens are masked with -100 (ignored during loss).
+    - Added better handling for code generation tasks and overfitting prevention.
     """
     def preprocess_function(examples):
         prompts = examples["prompt"]
         outputs = examples["output"]
-        full_texts = [prompt + output for prompt, output in zip(prompts, outputs)]
+        
+        # Clean and format the data
+        full_texts = []
+        valid_prompts = []
+        
+        for prompt, output in zip(prompts, outputs):
+            # Clean up the prompt and output
+            prompt = prompt.strip()
+            output = output.strip()
+            
+            # Skip empty outputs
+            if not output.strip():
+                continue
+                
+            # For code generation, ensure proper formatting
+            if "python" in prompt.lower() or "code" in prompt.lower():
+                # Add a clear separator for code generation
+                full_text = f"{prompt}\n\n```python\n{output}\n```"
+            else:
+                # For other tasks, use a simple separator
+                full_text = f"{prompt}\n\n{output}"
+            
+            full_texts.append(full_text)
+            valid_prompts.append(prompt)
+
+        # If no valid examples, return empty batch
+        if not full_texts:
+            return {"input_ids": [], "attention_mask": [], "labels": []}
 
         # Tokenize full (prompt + output)
         tokenized = tokenizer(
@@ -48,26 +76,49 @@ def preprocess_data(dataset, tokenizer):
         )
 
         # Tokenize prompt separately to find how much to mask
-        prompt_tokenized = tokenizer(
-            prompts,
-            padding="max_length",
-            truncation=True,
-            max_length=Config.MAX_LENGTH,
-            return_tensors="pt"
-        )
+        prompt_texts = [f"{p.strip()}\n\n" for p in valid_prompts]
+        if prompt_texts:
+            prompt_tokenized = tokenizer(
+                prompt_texts,
+                padding="max_length",
+                truncation=True,
+                max_length=Config.MAX_LENGTH,
+                return_tensors="pt"
+            )
 
-        # Mask the prompt part in the labels with -100
-        labels = tokenized["input_ids"].clone()
-        for i, prompt_len in enumerate(prompt_tokenized["attention_mask"].sum(dim=1).tolist()):
-            labels[i][:prompt_len] = -100  # Mask prompt tokens
+            # Mask the prompt part in the labels with -100
+            labels = tokenized["input_ids"].clone()
+            for i, prompt_len in enumerate(prompt_tokenized["attention_mask"].sum(dim=1).tolist()):
+                if i < len(labels):
+                    labels[i][:prompt_len] = -100  # Mask prompt tokens
 
-        tokenized["labels"] = labels
+            tokenized["labels"] = labels
+        else:
+            # If no prompts, just use the input_ids as labels
+            tokenized["labels"] = tokenized["input_ids"].clone()
 
         # Convert tensors to Python lists (HF Datasets requires this)
         return {k: v.tolist() for k, v in tokenized.items()}
 
-    # Apply tokenization to the dataset
-    tokenized_dataset = dataset.map(preprocess_function, batched=True)
+    # Apply tokenization to the dataset with smaller batch size for stability
+    try:
+        tokenized_dataset = dataset.map(
+            preprocess_function, 
+            batched=True, 
+            batch_size=32,  # Smaller batch size to avoid Arrow errors
+            remove_columns=dataset["train"].column_names,
+            desc="Tokenizing dataset"
+        )
+    except Exception as e:
+        print(f"⚠️  Error with batch_size=32, trying with batch_size=16: {e}")
+        tokenized_dataset = dataset.map(
+            preprocess_function, 
+            batched=True, 
+            batch_size=16,  # Even smaller batch size as fallback
+            remove_columns=dataset["train"].column_names,
+            desc="Tokenizing dataset (fallback)"
+        )
+    
     print("✅ Tokenization complete.")
     return tokenized_dataset
 

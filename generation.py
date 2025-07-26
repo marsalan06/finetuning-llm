@@ -25,26 +25,39 @@ def generate_text(model, tokenizer, input_text, max_length=None):
     if max_length is None:
         max_length = Config.GENERATION_CONFIG['max_length']
     
-    # Tokenize input
+    # Ensure padding token is set
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    
+    # Tokenize input with proper attention mask
     inputs = tokenizer(
         input_text, 
         return_tensors="pt", 
         padding=True, 
         truncation=True, 
         max_length=Config.MAX_LENGTH,
-        pad_to_multiple_of=8  # Ensure proper padding
+        pad_to_multiple_of=8,  # Ensure proper padding
+        return_attention_mask=True  # Explicitly request attention mask
     )
     
     # Move inputs to device
     inputs = {key: value.to(Config.DEVICE) for key, value in inputs.items()}
     
-    # Generate text
+    # Generate text with proper parameters
     with torch.no_grad():
         outputs = model.generate(
-            inputs['input_ids'], 
-            max_length=max_length, 
+            inputs['input_ids'],
+            attention_mask=inputs['attention_mask'],  # Pass attention mask
+            max_new_tokens=max_length - inputs['input_ids'].shape[1],  # Use max_new_tokens instead of max_length
             num_return_sequences=Config.GENERATION_CONFIG['num_return_sequences'],
-            do_sample=Config.GENERATION_CONFIG['do_sample']
+            do_sample=Config.GENERATION_CONFIG['do_sample'],
+            temperature=Config.GENERATION_CONFIG['temperature'],
+            top_p=Config.GENERATION_CONFIG['top_p'],
+            top_k=Config.GENERATION_CONFIG['top_k'],
+            repetition_penalty=Config.GENERATION_CONFIG['repetition_penalty'],
+            no_repeat_ngram_size=Config.GENERATION_CONFIG['no_repeat_ngram_size'],
+            pad_token_id=tokenizer.pad_token_id,  # Explicitly set pad token
+            eos_token_id=tokenizer.eos_token_id  # Explicitly set eos token
         )
     
     # Decode generated text
@@ -146,3 +159,167 @@ def get_sample_inputs():
         "Create a function to find the maximum element in a list",
         "Write a function to calculate the factorial of a number"
     ] 
+
+
+def evaluate_on_dataset(model, tokenizer, dataset, num_samples=5):
+    """
+    Evaluate model predictions against actual dataset values.
+    
+    Args:
+        model: The model to evaluate
+        tokenizer: The tokenizer to use
+        dataset: The dataset to evaluate on
+        num_samples (int): Number of samples to evaluate
+        
+    Returns:
+        list: List of evaluation results
+    """
+    print(f"\n🔍 Evaluating model on {num_samples} dataset samples...")
+    print("=" * 80)
+    
+    evaluation_results = []
+    
+    # Get random samples from the dataset
+    import random
+    random.seed(42)  # For reproducible results
+    
+    # Convert dataset to list if it's a Dataset object
+    if hasattr(dataset, 'select'):
+        # For HuggingFace datasets
+        indices = random.sample(range(len(dataset)), min(num_samples, len(dataset)))
+        samples = [dataset[i] for i in indices]
+    else:
+        # For other dataset types
+        samples = random.sample(list(dataset), min(num_samples, len(dataset)))
+    
+    for i, sample in enumerate(samples, 1):
+        print(f"\n📊 Sample {i}/{num_samples}")
+        print("-" * 50)
+        
+        # Extract prompt and expected output
+        if isinstance(sample, dict):
+            prompt = sample.get('prompt', '')
+            expected_output = sample.get('output', '')
+        else:
+            # Handle different dataset formats
+            prompt = str(sample[0]) if len(sample) > 0 else ''
+            expected_output = str(sample[1]) if len(sample) > 1 else ''
+        
+        print(f"📝 Prompt: {prompt}")
+        print(f"✅ Expected: {expected_output[:100]}{'...' if len(expected_output) > 100 else ''}")
+        
+        # Generate prediction
+        try:
+            predicted_output = generate_text(model, tokenizer, prompt)
+            print(f"🤖 Predicted: {predicted_output[:100]}{'...' if len(predicted_output) > 100 else ''}")
+            
+            # Calculate similarity metrics
+            similarity_score = calculate_similarity(expected_output, predicted_output)
+            print(f"📈 Similarity Score: {similarity_score:.2f}")
+            
+            # Store result
+            result = {
+                'sample_id': i,
+                'prompt': prompt,
+                'expected': expected_output,
+                'predicted': predicted_output,
+                'similarity': similarity_score
+            }
+            evaluation_results.append(result)
+            
+        except Exception as e:
+            print(f"❌ Error generating prediction: {e}")
+            result = {
+                'sample_id': i,
+                'prompt': prompt,
+                'expected': expected_output,
+                'predicted': f"ERROR: {e}",
+                'similarity': 0.0
+            }
+            evaluation_results.append(result)
+    
+    # Print summary statistics
+    print("\n" + "=" * 80)
+    print("📊 EVALUATION SUMMARY")
+    print("=" * 80)
+    
+    valid_results = [r for r in evaluation_results if not r['predicted'].startswith("ERROR:")]
+    if valid_results:
+        avg_similarity = sum(r['similarity'] for r in valid_results) / len(valid_results)
+        good_predictions = sum(1 for r in valid_results if r['similarity'] >= 0.5)
+        
+        print(f"Average Similarity Score: {avg_similarity:.2f}")
+        print(f"Successful Predictions: {len(valid_results)}/{len(evaluation_results)}")
+        print(f"Good Predictions (≥0.5): {good_predictions}/{len(valid_results)} ({good_predictions/len(valid_results)*100:.1f}%)")
+        
+        # Show best and worst predictions
+        best_result = max(valid_results, key=lambda x: x['similarity'])
+        worst_result = min(valid_results, key=lambda x: x['similarity'])
+        
+        print(f"\n🏆 Best Prediction (Score: {best_result['similarity']:.2f}):")
+        print(f"Prompt: {best_result['prompt'][:50]}...")
+        print(f"Expected: {best_result['expected'][:50]}...")
+        print(f"Predicted: {best_result['predicted'][:50]}...")
+        
+        print(f"\n⚠️  Worst Prediction (Score: {worst_result['similarity']:.2f}):")
+        print(f"Prompt: {worst_result['prompt'][:50]}...")
+        print(f"Expected: {worst_result['expected'][:50]}...")
+        print(f"Predicted: {worst_result['predicted'][:50]}...")
+    
+    return evaluation_results
+
+
+def calculate_similarity(expected, predicted):
+    """
+    Calculate similarity between expected and predicted outputs.
+    
+    Args:
+        expected (str): Expected output
+        predicted (str): Predicted output
+        
+    Returns:
+        float: Similarity score between 0 and 1
+    """
+    import difflib
+    
+    # Clean the texts
+    expected_clean = expected.strip().lower()
+    predicted_clean = predicted.strip().lower()
+    
+    # Use difflib for sequence matching
+    similarity = difflib.SequenceMatcher(None, expected_clean, predicted_clean).ratio()
+    
+    return similarity
+
+
+def compare_models_with_dataset_evaluation(base_model, base_tokenizer, fine_tuned_model, fine_tuned_tokenizer, dataset, inputs):
+    """
+    Compare outputs from base model and fine-tuned model with dataset evaluation.
+    
+    Args:
+        base_model: The base model
+        base_tokenizer: The base model's tokenizer
+        fine_tuned_model: The fine-tuned model
+        fine_tuned_tokenizer: The fine-tuned model's tokenizer
+        dataset: The dataset to evaluate on
+        inputs (list): List of input texts to test
+        
+    Returns:
+        tuple: (base_outputs, fine_tuned_outputs, evaluation_results)
+    """
+    print("Generating outputs from base model...")
+    base_model_outputs = [
+        generate_text(base_model, base_tokenizer, input_text) 
+        for input_text in inputs
+    ]
+    
+    print("Generating outputs from fine-tuned model...")
+    fine_tuned_outputs = [
+        generate_text(fine_tuned_model, fine_tuned_tokenizer, input_text) 
+        for input_text in inputs
+    ]
+    
+    # Evaluate fine-tuned model on dataset
+    evaluation_results = evaluate_on_dataset(fine_tuned_model, fine_tuned_tokenizer, dataset)
+    
+    return base_model_outputs, fine_tuned_outputs, evaluation_results 

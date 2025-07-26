@@ -53,7 +53,7 @@ def setup_trainer(model, tokenizer, train_dataset, eval_dataset):
     print(f"  - Epochs: {Config.TRAINING_ARGS['num_train_epochs']}")
     print(f"  - Mixed precision (FP16): {Config.TRAINING_ARGS['fp16']}")
     print(f"  - Output directory: {Config.TRAINING_ARGS['output_dir']}")
-    print(f"  - Checkpoint directory: {Config.CHECKPOINT_DIR}")
+    print(f"  - Checkpoints will be saved in: {Config.TRAINING_ARGS['output_dir']}")
     
     return trainer
 
@@ -95,8 +95,10 @@ def train_model(trainer, resume_from_checkpoint=None):
     print("Starting model training...")
     
     # Check for existing checkpoints if no specific checkpoint provided
-    if resume_from_checkpoint is None and Config.TRAINING_ARGS["resume_from_checkpoint"]:
-        resume_from_checkpoint = find_latest_checkpoint()
+    if resume_from_checkpoint is None:
+        print("No checkpoint specified, starting training from scratch")
+    else:
+        print(f"Using specified checkpoint: {resume_from_checkpoint}")
     
     if resume_from_checkpoint:
         print(f"Resuming training from checkpoint: {resume_from_checkpoint}")

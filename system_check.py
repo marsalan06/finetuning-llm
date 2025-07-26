@@ -145,8 +145,7 @@ def check_training_readiness():
     # Check if required directories exist
     required_dirs = [
         Config.TRAINING_ARGS["output_dir"],
-        Config.TRAINING_ARGS["logging_dir"],
-        Config.CHECKPOINT_DIR
+        Config.TRAINING_ARGS["logging_dir"]
     ]
     
     missing_dirs = []
