@@ -32,7 +32,7 @@ def preprocess_data(dataset, tokenizer):
     - Uses the dataset's existing 'prompt' field as input.
     - Concatenates 'prompt' + 'output' as the training input.
     - Labels are same as input_ids, but prompt tokens are masked with -100 (ignored during loss).
-    - Added better handling for code generation tasks and overfitting prevention.
+    - IMPROVED: Uses consistent Alpaca-style formatting for better generation quality.
     """
     def preprocess_function(examples):
         prompts = examples["prompt"]
@@ -51,13 +51,9 @@ def preprocess_data(dataset, tokenizer):
             if not output.strip():
                 continue
                 
-            # For code generation, ensure proper formatting
-            if "python" in prompt.lower() or "code" in prompt.lower():
-                # Add a clear separator for code generation
-                full_text = f"{prompt}\n\n```python\n{output}\n```"
-            else:
-                # For other tasks, use a simple separator
-                full_text = f"{prompt}\n\n{output}"
+            # IMPROVED: Use consistent Alpaca-style formatting
+            # This format works better for generation and is more consistent
+            full_text = f"{prompt}\n\n### Response:\n{output}"
             
             full_texts.append(full_text)
             valid_prompts.append(prompt)
@@ -76,7 +72,8 @@ def preprocess_data(dataset, tokenizer):
         )
 
         # Tokenize prompt separately to find how much to mask
-        prompt_texts = [f"{p.strip()}\n\n" for p in valid_prompts]
+        # Include the separator in the prompt part for masking
+        prompt_texts = [f"{p.strip()}\n\n### Response:\n" for p in valid_prompts]
         if prompt_texts:
             prompt_tokenized = tokenizer(
                 prompt_texts,

@@ -166,10 +166,13 @@ def main():
 def run_evaluation_only():
     """
     Run only the evaluation part (useful when model is already trained).
+    UPDATED: Now works with new Alpaca-style prompt format
     """
     print("="*60)
     print("Model Evaluation Only")
     print("="*60)
+    print("📝 UPDATED: Now uses Alpaca-style prompt format")
+    print("🎯 Target modules:", Config.LORA_CONFIG["target_modules"])
     
     # Load models
     print("\n1. Loading models...")
@@ -177,6 +180,7 @@ def run_evaluation_only():
     
     try:
         fine_tuned_model, fine_tuned_tokenizer = load_fine_tuned_model()
+        print("✅ Fine-tuned model loaded successfully!")
     except FileNotFoundError as e:
         print(f"\n❌ Error: {e}")
         print("\nThe fine-tuned model has not been saved yet. You need to:")
@@ -208,7 +212,34 @@ def run_evaluation_only():
     print_comparison(sample_inputs, base_outputs, fine_tuned_outputs)
     save_predictions_to_csv(sample_inputs, base_outputs, fine_tuned_outputs)
     
-    print("\nEvaluation completed!")
+    print("\n✅ Evaluation completed!")
+    print(f"📊 Results saved to: {Config.PREDICTIONS_CSV_PATH}")
+    
+    # Offer interactive testing
+    print("\n🎮 Would you like to test the models interactively?")
+    print("Run: python interactive_test.py")
+    print("Or: python interactive_test.py --quick")
+
+
+def run_interactive_evaluation():
+    """
+    Run interactive evaluation mode.
+    """
+    print("="*60)
+    print("Interactive Model Evaluation")
+    print("="*60)
+    print("📝 UPDATED: Now uses Alpaca-style prompt format")
+    
+    # Import interactive functions
+    from interactive_test import interactive_mode, quick_test
+    
+    # Check command line arguments
+    if len(sys.argv) > 2 and sys.argv[2] == "--quick":
+        print("Running quick test mode...")
+        quick_test()
+    else:
+        print("Starting interactive mode...")
+        interactive_mode()
 
 
 def resume_training():
@@ -262,10 +293,14 @@ if __name__ == "__main__":
             run_evaluation_only()
         elif sys.argv[1] == "--resume":
             resume_training()
+        elif sys.argv[1] == "--interactive":
+            run_interactive_evaluation()
         else:
             print("Usage:")
-            print("  python main.py              # Run full training pipeline")
-            print("  python main.py --evaluate   # Run evaluation only")
-            print("  python main.py --resume     # Resume training from checkpoint")
+            print("  python main.py                    # Run full training pipeline")
+            print("  python main.py --evaluate         # Run evaluation only")
+            print("  python main.py --resume           # Resume training from checkpoint")
+            print("  python main.py --interactive      # Run interactive testing")
+            print("  python main.py --interactive --quick  # Run quick test")
     else:
         main() 

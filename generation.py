@@ -33,8 +33,8 @@ def generate_text(model, tokenizer, input_text, max_length=None):
     model.eval()
     
     # Format the input text to match the training format
-    # The model was trained with format: "prompt\n\noutput"
-    formatted_input = f"{input_text.strip()}\n\n"
+    # The model was trained with format: "prompt\n\n### Response:\noutput"
+    formatted_input = f"{input_text.strip()}\n\n### Response:\n"
     
     # Tokenize input with proper attention mask
     inputs = tokenizer(
@@ -80,16 +80,16 @@ def generate_text(model, tokenizer, input_text, max_length=None):
     full_generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
     # Extract only the new generated part (remove the input text)
-    # The model was trained to generate after "\n\n", so we need to extract from there
-    if "\n\n" in full_generated_text:
-        # Split on "\n\n" and take everything after it
-        parts = full_generated_text.split("\n\n", 1)
+    # The model was trained to generate after "### Response:\n", so we need to extract from there
+    if "### Response:\n" in full_generated_text:
+        # Split on "### Response:\n" and take everything after it
+        parts = full_generated_text.split("### Response:\n", 1)
         if len(parts) > 1:
             generated_only = parts[1].strip()
         else:
             generated_only = full_generated_text.strip()
     else:
-        # If no "\n\n" found, try to remove the input text
+        # If no "### Response:\n" found, try to remove the input text
         input_tokens = tokenizer.decode(inputs['input_ids'][0], skip_special_tokens=True)
         if full_generated_text.startswith(input_tokens):
             generated_only = full_generated_text[len(input_tokens):].strip()

@@ -1,6 +1,7 @@
 """
 Example usage script demonstrating how to use the modular components.
 This script shows how to use each module independently for custom workflows.
+UPDATED: Now works with new Alpaca-style prompt format and updated target modules
 """
 
 from config import Config
@@ -82,6 +83,7 @@ def example_custom_config():
     print("\n=== Custom Configuration Example ===")
     
     # You can modify Config class attributes or create custom config
+    # UPDATED: Now shows the correct target modules for DistilGPT2
     custom_config = {
         "MODEL_CHECKPOINT": "distilgpt2",
         "MAX_LENGTH": 256,  # Shorter sequences for faster training
@@ -89,19 +91,46 @@ def example_custom_config():
             "r": 4,  # Lower rank for faster training
             "lora_alpha": 16,
             "lora_dropout": 0.05,
-            "target_modules": ["attn.c_attn", "attn.c_proj"]
+            # UPDATED: Correct target modules for DistilGPT2
+            "target_modules": ["c_attn", "c_proj"]  # Simplified version
         }
     }
     
     print("Custom configuration:")
     for key, value in custom_config.items():
         print(f"  {key}: {value}")
+    
+    print("\n📝 Note: Using simplified target modules for faster training")
+    print("🎯 Current target modules:", Config.LORA_CONFIG["target_modules"])
+
+
+def example_prompt_formatting():
+    """Example of the new prompt formatting."""
+    print("\n=== Prompt Formatting Example ===")
+    
+    # Show the new Alpaca-style format
+    sample_prompts = [
+        "Write a Python function to reverse a string",
+        "Create a function to check if a number is prime",
+        "Generate a Python code for crawling a website"
+    ]
+    
+    print("New Alpaca-style prompt format:")
+    for prompt in sample_prompts:
+        formatted = f"{prompt}\n\n### Response:\n"
+        print(f"Input: {prompt}")
+        print(f"Formatted: {formatted}")
+        print("-" * 30)
+    
+    print("✅ This format works better for generation quality")
 
 
 def main():
     """Main example function."""
     print("LoRA Fine-Tuning - Example Usage")
     print("="*50)
+    print("📝 UPDATED: Now uses Alpaca-style prompt format")
+    print("🎯 Target modules:", Config.LORA_CONFIG["target_modules"])
     
     # Example 1: Data loading
     tokenized_dataset, tokenizer = example_data_loading()
@@ -112,16 +141,23 @@ def main():
     # Example 3: Custom configuration
     example_custom_config()
     
-    # Example 4: Training (commented out to avoid long execution)
+    # Example 4: Prompt formatting
+    example_prompt_formatting()
+    
+    # Example 5: Training (commented out to avoid long execution)
     # Uncomment the following lines to run training
     # results = example_training(model, tokenizer, 
     #                          tokenized_dataset["train"], 
     #                          tokenized_dataset["test"])
     
-    # Example 5: Generation
+    # Example 6: Generation
     example_generation(model, tokenizer)
     
     print("\nExample usage completed!")
+    print("\n💡 Key Updates:")
+    print("  - Alpaca-style prompt format: prompt\\n\\n### Response:\\noutput")
+    print("  - Updated target modules for DistilGPT2")
+    print("  - MPS-compatible LoRA configuration")
 
 
 if __name__ == "__main__":

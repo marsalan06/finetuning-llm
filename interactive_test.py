@@ -2,6 +2,7 @@
 """
 Interactive Testing Mode for Model Comparison
 Allows real-time testing of base model vs fine-tuned model
+UPDATED: Now works with new Alpaca-style prompt format
 """
 
 import torch
@@ -9,9 +10,8 @@ import sys
 import os
 from config import Config
 from model_setup import setup_model
-from trainer import load_fine_tuned_model, find_latest_checkpoint
-from generation import generate_text, print_comparison
-from data_loader import load_data
+from trainer import load_fine_tuned_model
+from generation import generate_text
 
 
 def load_models():
@@ -78,81 +78,14 @@ def test_single_input(base_model, base_tokenizer, fine_tuned_model, fine_tuned_t
     print(f"🔵 Base Model: {base_output}")
     print(f"🟢 Fine-tuned Model: {fine_tuned_output}")
     print("-" * 40)
-    
-    # Add analysis
-    if fine_tuned_model is not None and not base_output.startswith("Error") and not fine_tuned_output.startswith("Error"):
-        print("\n📈 ANALYSIS:")
-        print("-" * 20)
-        base_length = len(base_output)
-        fine_tuned_length = len(fine_tuned_output)
-        
-        if base_length > fine_tuned_length:
-            print(f"🔵 Base model generated longer output ({base_length} vs {fine_tuned_length} chars)")
-        elif fine_tuned_length > base_length:
-            print(f"🟢 Fine-tuned model generated longer output ({fine_tuned_length} vs {base_length} chars)")
-        else:
-            print(f"📊 Both models generated same length output ({base_length} chars)")
-        
-        # Check if outputs are similar
-        if base_output == fine_tuned_output:
-            print("🔄 Both models generated identical outputs")
-        else:
-            print("🔄 Models generated different outputs")
-
-
-def test_dataset_samples(base_model, base_tokenizer, fine_tuned_model, fine_tuned_tokenizer, num_samples=3):
-    """Test on random dataset samples."""
-    print(f"\n🔍 Testing on {num_samples} random dataset samples...")
-    
-    # Load dataset
-    dataset = load_data()
-    test_dataset = dataset["test"]
-    
-    import random
-    random.seed(42)  # For reproducible results
-    
-    # Get random samples
-    indices = random.sample(range(len(test_dataset)), min(num_samples, len(test_dataset)))
-    
-    for i, idx in enumerate(indices, 1):
-        sample = test_dataset[idx]
-        prompt = sample.get('prompt', '')
-        expected = sample.get('output', '')
-        
-        print(f"\n📊 Sample {i}/{num_samples}")
-        print("=" * 50)
-        print(f"📝 Prompt: {prompt}")
-        print(f"✅ Expected: {expected[:100]}{'...' if len(expected) > 100 else ''}")
-        
-        # Clean up the prompt - extract just the instruction
-        clean_prompt = prompt
-        if "### Instruction:" in prompt:
-            instruction_start = prompt.find("### Instruction:") + len("### Instruction:")
-            instruction_end = prompt.find("### Input:") if "### Input:" in prompt else len(prompt)
-            clean_prompt = prompt[instruction_start:instruction_end].strip()
-            print(f"🔧 Cleaned prompt: {clean_prompt}")
-        
-        # Generate predictions
-        try:
-            base_output = generate_text(base_model, base_tokenizer, clean_prompt)
-            print(f"🔵 Base Model: {base_output[:100]}{'...' if len(base_output) > 100 else ''}")
-        except Exception as e:
-            print(f"🔵 Base Model: Error - {e}")
-        
-        if fine_tuned_model is not None:
-            try:
-                fine_tuned_output = generate_text(fine_tuned_model, fine_tuned_tokenizer, clean_prompt)
-                print(f"🟢 Fine-tuned Model: {fine_tuned_output[:100]}{'...' if len(fine_tuned_output) > 100 else ''}")
-            except Exception as e:
-                print(f"🟢 Fine-tuned Model: Error - {e}")
-        else:
-            print("🟢 Fine-tuned Model: Not available")
 
 
 def interactive_mode():
     """Run interactive testing mode."""
     print("🚀 Interactive Model Testing Mode")
     print("=" * 50)
+    print("📝 UPDATED: Now uses Alpaca-style prompt format")
+    print("🎯 Target modules:", Config.LORA_CONFIG["target_modules"])
     
     # Load models
     base_model, base_tokenizer, fine_tuned_model, fine_tuned_tokenizer = load_models()
@@ -165,10 +98,13 @@ def interactive_mode():
     
     print("\n🎯 Available Commands:")
     print("  'test <your input>' - Test a custom input")
-    print("  'dataset <number>'  - Test on random dataset samples")
     print("  'help'             - Show this help")
     print("  'quit' or 'exit'   - Exit the program")
     print("  'clear'            - Clear the screen")
+    print("\n💡 Example inputs:")
+    print("  'Write a Python function to reverse a string'")
+    print("  'Create a function to check if a number is prime'")
+    print("  'Generate a Python code for crawling a website'")
     
     while True:
         try:
@@ -181,22 +117,19 @@ def interactive_mode():
             elif user_input.lower() == 'help':
                 print("\n🎯 Available Commands:")
                 print("  'test <your input>' - Test a custom input")
-                print("  'dataset <number>'  - Test on random dataset samples")
                 print("  'help'             - Show this help")
                 print("  'quit' or 'exit'   - Exit the program")
                 print("  'clear'            - Clear the screen")
+                print("\n💡 Example inputs:")
+                print("  'Write a Python function to reverse a string'")
+                print("  'Create a function to check if a number is prime'")
+                print("  'Generate a Python code for crawling a website'")
             
             elif user_input.lower() == 'clear':
                 os.system('clear' if os.name == 'posix' else 'cls')
                 print("🚀 Interactive Model Testing Mode")
                 print("=" * 50)
-            
-            elif user_input.lower().startswith('dataset'):
-                try:
-                    num_samples = int(user_input.split()[1]) if len(user_input.split()) > 1 else 3
-                    test_dataset_samples(base_model, base_tokenizer, fine_tuned_model, fine_tuned_tokenizer, num_samples)
-                except ValueError:
-                    print("❌ Please provide a valid number: dataset <number>")
+                print("📝 UPDATED: Now uses Alpaca-style prompt format")
             
             elif user_input.lower().startswith('test'):
                 if len(user_input.split()) < 2:
@@ -222,11 +155,12 @@ def quick_test():
     """Run a quick test with sample inputs."""
     print("⚡ Quick Test Mode")
     print("=" * 30)
+    print("📝 UPDATED: Now uses Alpaca-style prompt format")
     
     # Load models
     base_model, base_tokenizer, fine_tuned_model, fine_tuned_tokenizer = load_models()
     
-    # Sample inputs
+    # Sample inputs - updated for better testing
     sample_inputs = [
         "Write a Python function to reverse a string",
         "Create a function to check if a number is prime",
