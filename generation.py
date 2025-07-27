@@ -20,7 +20,7 @@ def generate_text(model, tokenizer, input_text, max_length=None):
                                   Defaults to Config.GENERATION_CONFIG['max_length'].
     
     Returns:
-        str: Generated text
+        str: Generated text (only the new generated part, not including input)
     """
     if max_length is None:
         max_length = Config.GENERATION_CONFIG['max_length']
@@ -29,9 +29,16 @@ def generate_text(model, tokenizer, input_text, max_length=None):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     
+    # Put model in evaluation mode
+    model.eval()
+    
+    # Format the input text to match the training format
+    # The model was trained with format: "prompt\n\noutput"
+    formatted_input = f"{input_text.strip()}\n\n"
+    
     # Tokenize input with proper attention mask
     inputs = tokenizer(
-        input_text, 
+        formatted_input, 
         return_tensors="pt", 
         padding=True, 
         truncation=True, 
@@ -45,24 +52,51 @@ def generate_text(model, tokenizer, input_text, max_length=None):
     
     # Generate text with proper parameters
     with torch.no_grad():
-        outputs = model.generate(
-            inputs['input_ids'],
-            attention_mask=inputs['attention_mask'],  # Pass attention mask
-            max_new_tokens=max_length - inputs['input_ids'].shape[1],  # Use max_new_tokens instead of max_length
-            num_return_sequences=Config.GENERATION_CONFIG['num_return_sequences'],
-            do_sample=Config.GENERATION_CONFIG['do_sample'],
-            temperature=Config.GENERATION_CONFIG['temperature'],
-            top_p=Config.GENERATION_CONFIG['top_p'],
-            top_k=Config.GENERATION_CONFIG['top_k'],
-            repetition_penalty=Config.GENERATION_CONFIG['repetition_penalty'],
-            no_repeat_ngram_size=Config.GENERATION_CONFIG['no_repeat_ngram_size'],
-            pad_token_id=tokenizer.pad_token_id,  # Explicitly set pad token
-            eos_token_id=tokenizer.eos_token_id  # Explicitly set eos token
-        )
+        # Calculate max_new_tokens, ensuring it's reasonable
+        input_length = inputs['input_ids'].shape[1]
+        max_new_tokens = min(max_length, 150)  # Limit to reasonable length
+        
+        try:
+            outputs = model.generate(
+                inputs['input_ids'],
+                attention_mask=inputs['attention_mask'],  # Pass attention mask
+                max_new_tokens=max_new_tokens,  # Use max_new_tokens instead of max_length
+                num_return_sequences=Config.GENERATION_CONFIG['num_return_sequences'],
+                do_sample=Config.GENERATION_CONFIG['do_sample'],
+                temperature=Config.GENERATION_CONFIG['temperature'],
+                top_p=Config.GENERATION_CONFIG['top_p'],
+                top_k=Config.GENERATION_CONFIG['top_k'],
+                repetition_penalty=Config.GENERATION_CONFIG['repetition_penalty'],
+                no_repeat_ngram_size=Config.GENERATION_CONFIG['no_repeat_ngram_size'],
+                pad_token_id=tokenizer.pad_token_id,  # Explicitly set pad token
+                eos_token_id=tokenizer.eos_token_id  # Explicitly set eos token
+            )
+            
+        except Exception as e:
+            print(f"❌ Generation error: {e}")
+            return f"Error during generation: {e}"
     
     # Decode generated text
-    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return generated_text
+    full_generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    
+    # Extract only the new generated part (remove the input text)
+    # The model was trained to generate after "\n\n", so we need to extract from there
+    if "\n\n" in full_generated_text:
+        # Split on "\n\n" and take everything after it
+        parts = full_generated_text.split("\n\n", 1)
+        if len(parts) > 1:
+            generated_only = parts[1].strip()
+        else:
+            generated_only = full_generated_text.strip()
+    else:
+        # If no "\n\n" found, try to remove the input text
+        input_tokens = tokenizer.decode(inputs['input_ids'][0], skip_special_tokens=True)
+        if full_generated_text.startswith(input_tokens):
+            generated_only = full_generated_text[len(input_tokens):].strip()
+        else:
+            generated_only = full_generated_text.strip()
+    
+    return generated_only
 
 
 def compare_models(base_model, base_tokenizer, fine_tuned_model, fine_tuned_tokenizer, inputs):

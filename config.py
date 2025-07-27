@@ -82,14 +82,14 @@ class Config:
     
     # Generation configuration
     GENERATION_CONFIG = {
-        "max_length": 200,  # INCREASED from 100 to allow for longer code generation
+        "max_length": 200,  # REDUCED to prevent overly long outputs
         "num_return_sequences": 1,
         "do_sample": True,
-        "temperature": 0.7,  # Control randomness
-        "top_p": 0.9,  # Nucleus sampling
-        "top_k": 50,  # Top-k sampling
-        "repetition_penalty": 1.2,  # Prevent repetition
-        "no_repeat_ngram_size": 3,  # Prevent n-gram repetition
+        "temperature": 0.8,  # INCREASED for more creative outputs
+        "top_p": 0.95,  # INCREASED for more diverse sampling
+        "top_k": 50,  # INCREASED for more diverse sampling
+        "repetition_penalty": 1.0,  # REDUCED to allow more repetition
+        "no_repeat_ngram_size": 1,  # REDUCED to allow more repetition
     }
     
     # File paths - ALL CONSOLIDATED IN RESULTS FOLDER
